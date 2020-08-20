@@ -21,6 +21,14 @@ Result=> Initialized empty Git repository in C:/Users/i/Desktop/TIL/.git/
 작업한 내용을 커밋 대상 목록에 추가한다.
 
 ```bash
+$ git add .
+$ git add a.html b.html
+$ git add blog/
+```
+
+
+
+```bash
 # 작업 후 상태
 $ git status
 On branch master

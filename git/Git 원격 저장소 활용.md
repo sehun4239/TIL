@@ -25,5 +25,14 @@ $ git remote add origin https://github.com/sehun4239/TIL.git
 
 ```bash
 $ git push origin master
+Enumerating objects: 8, done.
+Counting objects: 100% (8/8), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (5/5), done.
+Writing objects: 100% (5/5), 877 bytes | 877.00 KiB/s, done.
+Total 5 (delta 1), reused 0 (delta 0), pack-reused 0
+remote: Resolving deltas: 100% (1/1), completed with 1 local object.
+To https://github.com/sehun4239/TIL.git
+   9527404..94ca05d  master -> master
 ```
 

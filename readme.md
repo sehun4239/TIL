@@ -4,5 +4,6 @@
 
 ## 목록
 
-### [Git](git/)
-### [NumPy](Numpy/)
+### 1. [Git](git/)
+### 2. [NumPy](Numpy/)
+### 3. [Pandas](Pandas/)

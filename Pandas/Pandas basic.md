@@ -656,3 +656,326 @@ display(df.loc[['one','three']])   # OK. Fancy Indexing도 가능
 
 ```
 
+* loc[]를 이용하여 DataFrame의 행을 추출할 수 있다.
+
+```python
+import numpy as np
+import pandas as pd
+
+data = { '이름':['이지은', '박동훈', '홍길동', '강감찬', '오혜영'],
+       '학과':['컴퓨터', '기계', '철학', '컴퓨터', '철학'],
+       '학년':[1, 2, 2, 4, 3],
+       '학점':[1.5, 2.0, 3.1, 1.1, 2.7]}
+
+df = pd.DataFrame(data,
+                 columns=['학과','이름','학점','학년', '등급'],
+                 index=['one', 'two', 'three', 'four', 'five'])
+display(df.loc['one','three'])  # 행 추출
+display(df.loc['one','three'], '이름')    # Series
+display(df.loc['one','three', '이름':'학년'])
+display(df.loc['one','three',['이름','학년']])
+
+# Boolean -> 학점이 1.5를 초과하는 학생의 이름과 학점을 출력해보자
+df.loc[df['학점'] > 1.5, ['이름','학점']]
+
+# 이름이 박동훈인 사람을 찾아 이름과 학점을 출력해보자
+df.loc[df['이름']== '박동훈', ['이름','학점']]
+
+# 학점이 1.5를 초과하고 2.5미만인 모든 사람을 찾아 학과,이름,학점을 출력해보자
+df.loc[(df['학점'] > 1.5) & (df['학점'] < 2.5), '학과':'학점']
+
+# 학점이 3.0을 초과하는 사람을 찾아 등급을 'A'로 설정한 후 출력해보자
+df.loc[df['학점'] > 3.0, '등급'] = 'A'
+display(df)
+```
+
+* iloc[] 이용한 indexing
+
+```python
+print(df.iloc[0,0])  # 컴퓨터
+print(df.iloc[1])       # Series
+display(df.iloc[1:4])   
+df.iloc[[0,2],[1,3]]    # OK=> numpy에서는 행과열 동시에 fancy indexing 안됨 ->                             np.ix_()썼었음
+                        # iloc[]는 가능하다
+```
+
+* 새로운 행을 추가하거나 삭제해보자
+
+```python
+df.loc['six', :] = ['영어영문', '최길동', 4.0, 3, 'A']
+df.loc['six', ['학과','이름']] = ['영어영문', '최길동']  # 선택적으로도 가능하다.
+
+display(df)
+
+# DataFrame에서 특정 행을 삭제해보자
+display(df.drop('학점', axis=1, inplace=False)) # column 지우는법
+display(df.drop(['three','five'], axis=0, inplace=False)) # row 지우는법
+```
+
+
+
+##  DataFrame 통계적인 함수들
+
+* 통계관련 함수들을 알아보자
+
+``` python
+# 기댓값(expected value) : 확률을 가진 사건을 무한히 반복했을 경우 기대할 수 있는 평균값
+
+# 주사위 1개를 무한히 던졌을 때 기댓값은?
+import numpy as np
+
+result = np.random.randint(1,7, (1000000, ))
+print(result.mean())
+
+# 편차 (deviation) : 확률변수 x와 평균(기댓값)의 차이
+# 국민개개인의 소득은 다르다. 예를 들어, 홍길동, 김길동, 아이유, 김연아, 놀부, ...
+# 국민 평균 소득을 산출하여 편차를 구한다면
+# 홍길동소득 - 평균소득, 김길동 - 평균, 아이유 - 평균, 김연아 - 평균, 놀부 - 평균, ...
+# 편차를 이용하면 데이터의 흩어진 정도를 알기 쉽다.
+
+# 편차의 가장 큰 단점 : 데이터의 흩어진 정도를 하나의 숫자로 표현하기는 힘들다 =>편차의 합은 0
+
+# 분산(Variance) : 편차 제곱의 평균
+# std(standard deviation) : 표준편차 => 분산의 제곱근
+
+arr= np.array([4, 6, 1, 3, 8, 8], dtype=np.int32)
+print(arr)
+print(arr.sum())  # 30
+print(arr.mean())  # 5.0
+print(arr.var())   # 6.666666666666667
+print(arr.std())   # 2.581988897471611
+
+###########################
+
+# 공분산 (covariance)
+# 두 개의 확률변수의 관계를 보여줄 때 사용하는 값.
+# 공분산은 두 확률변수의 편차의 곱에 대한 평균
+# 확률변수 X(독립변수)와 Y(종속변수)에 대해 X가 변할때 Y가 변하는 정도
+
+# 그래프를 이용해서 공분산의 의미를 파악해보자
+import numpy as np
+import matplotlib.pyplot as plt
+
+# 독립변수 X에 대해 종속변수 Y의 값을 랜덤으로 생성해서 알아보자
+np.random.seed(1)
+
+x = np.random.randint(-20, 20, (10, ))
+y = np.random.randint(-10, 10, (10, ))
+
+x_mean = x.mean()   # X의 평균
+y_mean = y.mean()   # Y의 평균
+
+# 이렇게 구한 값을 가지고 scatter(산점도)를 그려보자
+plt.scatter(x,y,color='red')
+plt.scatter(x_mean,y_mean, color='blue')
+plt.show()
+
+# 공분산은 데이터의 변화량에 대한 총합을 의미
+# 공분산이 양수인지, 음수인지에 따라서 데이터의 방향성을 알 수 있다.
+# 공분산의 단점 => 단위의 문제때문에 연관성은 알 수 있는데 그 강도는 알 수 없다.
+
+# 만약 확률변수 X와 Y가 독립이면 공분산이 0에 수렴
+# 역은 성립하지 않음. 공분산이 0이면 두 확률변수는 독립이다 라고는 못함
+```
+
+![scatter](../markdown-images/scatter.png)
+
+* 공분산을 간단한 계산해보자
+
+```python
+np.random.seed(2)
+sampleNum = 100    # 데이터의 개수
+
+x = np.random.randint(0, 10, (sampleNum, ))
+y = np.random.randint(-20, 20, (sampleNum, ))
+
+x_mean = x.mean()   # X의 평균
+y_mean = y.mean()   # Y의 평균
+
+# 공분산은 편차의 곱의 평균!!
+x_deviation = x - x_mean
+y_deviation = y - y_mean
+
+result = 0
+for tmp in range(sampleNum):
+    result += (x_deviation[tmp] * y_deviation[tmp])
+    
+result_covariance = result / (sampleNum-1)    # 표준 공분산
+print(result_covariance)  # -0.591515151515151
+
+print(np.cov(x,y))    # [[  7.52767677  -0.59151515]
+                      #  [ -0.59151515 123.99636364]]
+```
+
+* 공분산에 대한 간단한 예제를 풀어보자
+
+```python
+# 주가를 이용해서 공분산 양수, 음수의 의미가 배운 내용과 일치하는지 확인해보자
+# KOSPI 200안의 삼성전자 비중이 34%
+# 삼성전자가 오르면 kospi가 오르고 떨어지면 kospi가 떨어질까 ?
+
+import numpy as np
+import pandas as pd
+import pandas_datareader.data as pdr    # 주가데이터를 받기위해서 필요
+from datetime import datetime
+
+# 특정 날짜간격동안 주식데이터를 받아올거다.
+# 특정 날짜 간격을 정해야 하는데 datetime을 이용해서 시작날짜와 끝날짜를 지정.
+start = datetime(2018, 1,1)  # 2019년 1월 1일
+end = datetime(2018,12,31)
+
+# YAHOO에서 제공하는 주가지수를 얻어온다
+df_KOSPI = pdr.DataReader('^KS11', 'yahoo', start, end)
+df_SE = pdr.DataReader('005930.KS', 'yahoo', start, end)
+
+# 반대로 움직이는 주식데이터를 가져와서 공분산이 음수가 되는지 확인!
+# 남북경협주, 방산주
+df_LIG = pdr.DataReader('079550.KS', 'yahoo', start, end)   # LIG넥스원(방산)
+df_PUSAN = pdr.DataReader('011390.KS', 'yahoo', start, end)  # 부산산업(납북경협주)
+
+closed_KOSPI = df_KOSPI['Close']  # 종가를 얻어온다 => 출력결과는 Series 
+closed_SE = df_SE['Close']  # Series
+
+closed_LIG = df_LIG['Close']  # Series
+closed_PUSAN = df_PUSAN['Close']  # Series
+
+print(np.cov(closed_KOSPI.values, closed_SE.values))   # 양수!!!
+print(np.cov(closed_KOSPI.values, closed_SE.values))  # 음수
+# 값이 양수다 => 하나가 증가하면 다른 하나가 증가하는 관계에 있다.
+# 공분산으로는 두 데이터의 관계가 얼마나 강한지는 알 수 없다.
+```
+
+* 공분산의 경우 관계의 강도를 알 수 없기 때문에 상관계수 (피어슨 상관계수 등)를 더 많이 이용한다.
+
+``` python
+# 상관 계수는 공분산을 이용해서 도출하며 방향성과 두 데이터의 관련성 (얼마나 밀접한 관계가 있는지.. 연관성의 강도를 알 수 있다.)
+
+# 상관계수 (correlation coefficient)
+# 상관계수는 -1 ~ 1 사이의 실수 값.
+# 0 : 서로 독립.   1쪽으로 갈수록 양의 상관관계, -1로 갈수록 ㄷ음의 상관관계
+
+# 상관관계(correlation) : 두 대상이 서로 연관성이 있다고 추측되는 관계
+# 성적과 자존감, 온라인 게임과 폭력성 ...
+
+# 상관관계를 이야기할 때 조심해야할 점은 상관관계는 인과관계를 설명할 수 없다.
+# 인과관계는 regression을 이용해서 인과관계를 분석!
+
+# 우리가 실제로 많이 사용하는 지표는 => 상관계수 (-1 ~ 1)
+
+start = datetime(2018, 1,1)  # 2018년 1월 1일
+end = datetime(2018,12,31)
+
+# YAHOO에서 제공하는 주가지수를 얻어온다
+df_KOSPI = pdr.DataReader('^KS11', 'yahoo', start, end)
+df_SE = pdr.DataReader('005930.KS', 'yahoo', start, end)
+
+closed_KOSPI = df_KOSPI['Close']  # Series
+closed_SE = df_SE['Close']  # Series
+
+print(np.corrcoef(closed_KOSPI, closed_SE))
+#[[1.         0.91357384]
+# [0.91357384 1.        ]]
+# 0.91이면 강한 양의 상관관계를 가진다는 것을 알 수 있다.
+```
+
+
+
+## DataFrame의 정렬 
+
+* DataFrame의 정렬은 ndarray matrix의 sort와는 다르다.
+
+```python
+import numpy as np
+import pandas as pd
+
+# 난수의 재현성을 확보
+np.random.seed(1)
+
+# 2차원 ndarray를 정수형 난수로 생성하고 그 ndarry를 이용해서 DataFrame을 생성
+
+df=pd.DataFrame(np.random.randint(0,10,(6,4)))
+# display(df)
+
+df.columns = ['A', 'B', 'C', 'D']
+# display(df)
+
+# 숫자 index 대신 날짜를 사용하자
+df.index = pd.date_range('20200101', periods=6)
+# display(df)
+
+# 정렬 연습 => index부분을 shuffle하자
+np.random.shuffle(df.index)  # error난다. index does not support mutable                                        operations
+
+random_date = np.random.permutation(df.index)
+df2 = df.reindex(index=random_date, columns=['B','A','D','C'])
+np.random.shuffle(df.index.values)
+display(df)
+display(df2)
+
+# DataFrame에서 정렬은 두가지만 알아두면 된다.
+display(df2.sort_index(axis=0, ascending=True))  # 오름차순
+
+# 또 다른 정렬은 값으로 정렬,
+df2.sort_values(by=['B','A'])  # 2차 정렬도 가능
+```
+
+* DataFrame의 기본 함수 몇가지를 더 알아보자
+
+```python
+import numpy as np
+import pandas as pd
+
+np.random.seed(1)
+df = pd.DataFrame(np.random.randint(0,10,(6,4)),
+                  index=pd.date_range('20200101', periods=6),
+                  columns=['A','B','C','D'])
+df['E'] = ['AA','BB','CC','CC','AA','CC']
+                  
+display(df)
+                  
+# 중복을 없애고 UNIQUE한 값만을 추출
+print(df['E'].unique())    # ['AA' 'BB' 'CC']
+
+# 각각의 값들의 개수를 Series로 추출
+print(df['E'].value_counts())
+# CC    3
+# AA    2
+# BB    1
+
+
+# 값이 포함되는지 확인하는 함수 => boolean indexing(mask)
+print(df['E'].isin(['AA','BB(']))
+# 2020-01-01     True
+# 2020-01-02    False
+# 2020-01-03    False
+# 2020-01-04    False
+# 2020-01-05     True
+# 2020-01-06    False
+# Freq: D, Name: E, dtype: bool
+```
+
+
+
+## Apply & Lambda
+
+```python
+import numpy as np
+import pandas as pd
+
+np.random.seed(1)
+df = pd.DataFrame(np.random.randint(0,10,(6,4)),
+                  index=pd.date_range('20200101', periods=6),
+                  columns=['A','B','C','D'])
+
+display(df)
+
+# python의 lambda식
+my_func = lambda x: x.max() - x.min()
+
+df['최대-최소'] = df.apply(my_func, axis=1)
+
+# display(df)
+
+print(df.apply(my_func, axis=0))
+```
+

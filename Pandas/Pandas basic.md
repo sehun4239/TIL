@@ -979,3 +979,311 @@ df['최대-최소'] = df.apply(my_func, axis=1)
 print(df.apply(my_func, axis=0))
 ```
 
+
+
+## DataFrame Merge (Table join)
+
+* DataFrame 두 개를 연결
+
+```python
+import numpy as np
+import pandas as pd
+
+data1 = {'학번' : [1, 2, 3, 4],
+         '이름' : ['이지안', '박동훈', '이순신', '강감찬'],
+         '학년' : [2, 4, 1, 3]}
+
+data2 = {'학번' : [1, 2, 4, 5],
+         '학과' : ['CS', 'MATH', 'MATH', 'CS'],
+         '학점' : [3.4, 2.9, 4.5, 1.2]}
+
+df1 = pd.DataFrame(data1)
+df2 = pd.DataFrame(data2)
+
+# on 조건에 둘 다 해당되는 교집합만 merge
+result = pd.merge(df1, df2, on='학번', how='inner')
+display(result)
+
+#	학번	이름	학년_x	학과	학년_y
+#0	1	이지안	2	CS	3.4
+#1	2	박동훈	4	MATH	2.9
+#2	4	강감찬	3	MATH	4.5
+
+
+# on 조건 합집합으로 merge
+result1 = pd.merge(df1, df2, on='학번', how='outer') # full outer join
+
+#학번	이름	학년_x	학과	학년_y
+#0	1	이지안	2.0	CS	3.4
+#1	2	박동훈	4.0	MATH	2.9
+#2	3	이순신	1.0	NaN	NaN
+#3	4	강감찬	3.0	MATH	4.5
+#4	5	NaN	NaN	CS	1.2
+
+# left or right df의 on 조건에 맞게 merge
+result2 = pd.merge(df1, df2, on='학번', how='left') # left outer join
+result3 = pd.merge(df1, df2, on='학번', how='right') # right outer join
+```
+
+* 컬럼 명이 다를 경우는 index를 지정해주면 merge가 가능하다.
+
+```python
+data1 = {'학번' : [1, 2, 3, 4],
+         '이름' : ['이지안', '박동훈', '이순신', '강감찬'],
+         '학년' : [2, 4, 1, 3]}
+
+data2 = {'학생학번' : [1, 2, 4, 5],
+         '학과' : ['CS', 'MATH', 'MATH', 'CS'],
+         '학점' : [3.4, 2.9, 4.5, 1.2]}
+
+result = pd.merge(df1, df2, left_on='학번', right_on='학생학번', how='inner')
+
+#학번	이름	학년	학생학번	학과	학점
+#0	1	이지안	2	1	CS	3.4
+#1	2	박동훈	4	2	MATH	2.9
+#2	4	강감찬	3	4	MATH	4.5
+```
+
+* index끼리 merge도 가능
+
+```python
+data1 = {'이름' : ['이지안', '박동훈', '이순신', '강감찬'],
+         '학년' : [2, 4, 1, 3]}
+
+data2 = {'학과' : ['CS', 'MATH', 'MATH', 'CS'],
+         '학점' : [3.4, 2.9, 4.5, 1.2]}
+
+df1 = pd.DataFrame(data1,
+                   index=[1,2,3,4])  # 학번을 index로 사용
+df2 = pd.DataFrame(data2,
+                   index=[1,2,4,5])  # 학번을 index로 사용
+
+result = pd.merge(df1, df2, left_index=True, right_index=True, how='inner')
+```
+
+
+
+## Concatenation
+
+* Series를 1차원 2차원으로 연결하는 방법을 알아보자
+
+```python
+s1 = pd.Series([0, 1], index=['a','c'])
+s2 = pd.Series([4, 3, 2], index = ['b','c','e'])
+s3 = pd.Series([5, 6], index = ['f','g'])
+
+# Series는 1차원 vector형태다
+# 연결하는 방법은 2가지 방법이 있다. => 행방향 연결, 열방향 연결하는 방법
+
+print(pd.concat([s1,s2,s3], axis=0))  # Series를 1차원으로 연결
+display(pd.concat([s1,s2,s3], axis=1, sort=True))  # Series를 1차원으로 연결
+                                                   # sort는 index를 정렬할 것인지
+```
+
+* DataFrame 연결
+
+```python
+df1 = pd.DataFrame(np.arange(6).reshape(3,2), 
+                   index=['a','c','b'],
+                   columns=['one','two'])
+
+df2 = pd.DataFrame(5 + np.arange(4).reshape(2,2), 
+                   index=['a', 'b'],
+                   columns=['three','four'])
+display(df1)
+display(df2)
+
+result= pd.concat([df1,df2], axis=1, sort=True)
+#	one	two	three	four
+#a	0	1	5.0	6.0
+#b	4	5	7.0	8.0
+#c	2	3	NaN	NaN
+
+result= pd.concat([df1,df2], axis=0, ignore_index= True, sort=False) #column정렬
+#one	two	three	four
+#0	0.0	1.0	NaN	NaN
+#1	2.0	3.0	NaN	NaN
+#2	4.0	5.0	NaN	NaN
+#3	NaN	NaN	5.0	6.0
+#4	NaN	NaN	7.0	8.0
+```
+
+
+
+## 결측치/중복값 등 데이터 처리
+
+* NaN을 결측치라고 한다. 결측치가 들어가 있는 행을 지울지 말지 고려하는 것이 필요하다. 
+  * 결측치 수가 많지 않다면 삭제하는 것이 좋을 수 있다.
+  * 하지만 많을 경우 데이터가 많이 소실 되므로 다른 값으로 대체해서 사용한다.
+
+* 예제를 통해 알아보자
+
+```python
+# random seed 고정
+# 0 이상 10 미만의 정수형 난수를 균등분포로 추출해서
+# 6행 4열짜리 DataFrame을 생성
+# index와 column은 따로 지정하지 않을거다.
+
+# colum: 'A','B','C','D'
+# index : 날짜를 이용, 2020-01-01 부터 1일씩 증가
+
+# NaN값을 포함하는 새로운 column 'E'를 추가
+# 'E' column : [7, np.nan, 4, np.nan, 2, np.nan]
+
+import numpy as np
+import pandas as pd
+
+np.random.seed(0)
+df = pd.DataFrame(np.random.randint(0, 10, (6,4),))
+
+df.index = pd.date_range('20200101', '20200106')
+df.columns = ['A','B','C','D']
+
+df['E'] = [7, np.nan, 4, np.nan, 2, np.nan]
+
+# 결측치 제거
+new_df = df.dropna(how='any', inplace=False)  # (how='any') => NaN이 하나라도 행에 포함되어 있으면 행 삭제
+                      # (how='all') => 행의 모든 열이 NaN인 경우 행 삭제
+# 결측치를 다른 값으로 대체
+new_df2 = df.fillna(value=0)
+    
+display(df)
+display(new_df)
+display(new_df2)
+    
+# 결측치 있는 행을 골라서 추출
+my_mask = df['E'].isnull()  # boolean mask
+
+df.loc[my_mask]     # mask에 대한 행만 뽑음 (True인)
+```
+
+
+
+* 중복행 처리도 가능하다.
+
+```python
+df = pd.DataFrame({'k1' : ['one'] * 3 + ['two'] * 4,
+                   'k2' : [1,1,2,3,3,4,4]})
+
+# DataFrame에서 중복행에 대한 boolean mask를 추출
+print(df.duplicated()) # 중복행에 대한 boolean mask를 추출
+
+df.loc[df.duplicated(), :]
+# display(df.drop_duplicates()) # 중복행을 찾아서 지우고 그 결과 DataFrame을 리턴
+
+########
+
+df2 = pd.DataFrame({'k1' : ['one'] * 3 + ['two'] * 4,
+                   'k2' : [1,1,2,3,3,4,4],
+                   'k3' : np.arange(7)})
+
+display(df2)
+display(df2.drop_duplicates())  # 중복행이 없어요
+display(df2.drop_duplicates(['k1']))  # 중복행   one하나 two하나 살음
+```
+
+
+
+## Replace
+
+```python
+df = pd.DataFrame(np.random.randint(0,10,(6,4)),
+                  columns = ['A','B','C','D'])
+
+display(df)
+
+df['E'] = [7, np.nan, 4, np.nan, 2, np.nan]
+
+display(df)
+
+result = df.replace(8,-100)   # nan도 바꿀 수 있음 np.nan
+display(result)
+```
+
+
+
+## Grouping (중요)
+
+```python
+import numpy as np
+import pandas as pd
+
+my_dict = {'학과' : ['컴퓨터','체육교육','컴퓨터','체육교육','컴퓨터'],
+           '학년' : [1,2,3,2,3,],
+           '이름' : ['홍길동','김연아','최길동','아이유','신사임당'],
+           '학점' : [1.5, 4.4, 3.7, 4.5, 3.8]}
+df= pd.DataFrame(my_dict)
+
+display(df)
+
+# 학과를 기준으로 학점을 grouping (Series를 grouping)
+dept = df['학점'].groupby(df['학과'])
+display(dept)    # <pandas.core.groupby.generic.SeriesGroupBy object>
+
+# 그룹안의 데이터를 확인하고 싶은 경우 get_group()
+print(dept.get_group('컴퓨터'))
+
+# 각 그룹에 대한 size, 집계함수 사용 가능
+print(dept.size())
+
+print(dept.mean())
+
+# 2단계 grouping도 가능하다
+dept_year = df['학점'].groupby([df['학과'], df['학년']])
+
+print(dept_year.mean())
+
+# 우리가 사용하는 Series와 DataFrame은 index와 column에 multi index개념을 지원
+
+# unstack() : 최하위 index를 column으로 설정
+display(dept_year.mean().unstack())
+```
+
+* DataFrame을 grouping
+
+```python
+df_group_dept = df.groupby(df['학과'])
+print(df_group_dept)   # pandas.core.groupby.generic.DataFrameGroupBy object 
+
+display(df_group_dept.get_group('컴퓨터'))
+display(df_group_dept.mean())
+
+# 2단계 grouping
+df_dept_year = df.groupby(['학과','학년'])
+display(df_dept_year.mean().unstack())
+
+
+# 학과별 평균 학점은 ??
+print(df['학점'].groupby(df['학과']).mean())
+
+# 학과별 몇 명이 존재하는가?
+print(df['이름'].groupby(df['학과']).size())  # count()도 가능
+```
+
+* Grouping 하여 해당 그룹을 반복해서 처리하는 것도 가능하다.
+
+```python
+my_dict = {'학과' : ['컴퓨터','체육교육','컴퓨터','체육교육','컴퓨터'],
+           '학년' : [1,2,3,2,3,],
+           '이름' : ['홍길동','김연아','최길동','아이유','신사임당'],
+           '학점' : [1.5, 4.4, 3.7, 4.5, 3.8]}
+df= pd.DataFrame(my_dict)
+
+display(df)
+
+# 학과로 grouping을 한 다음에 for문을 이용해서 반복처리
+
+# 1단계 group
+for (dept, group) in df.groupby(df['학과']):
+     print(dept)
+     display(group)
+     print('=========')
+
+# 2단계 group
+for ((dept,year), group) in df.groupby(['학과','학년']):
+    print(dept)
+    print(year)
+    display(group)
+    print('=========')
+```
+

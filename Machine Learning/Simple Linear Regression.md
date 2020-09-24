@@ -225,3 +225,192 @@ data = data[np.isin(data, outliers, invert=True)]
 print(data)
 ```
 
+* 이상치 처리 외에도 정규화를 통해 조정해줘야한다.
+
+```python
+# 데이터가 가진 feature들의 scale이 심하게 차이나는 경우 이를
+# 조정해 줘야 한다 => 정규화 (Normalization)
+
+# 집에 대한 feature가 2개가 있다.
+# 하나는 방의 개수 ( 1, 2, 3, 4, 5, .... 20) 1 ~ 20 숫자차이는 크지 않지만
+# 집의 연식(월) (12,24,.....,240)     12~240 숫자 차이가 크다
+
+# 각 feature들에 대해 동일한 scale을 적용할 필요가 있다. (0~1사이로)
+
+# Min-Max Normalization (정규화)
+# Standardization - Z-Score Normalization (표준화)
+
+# Min-Max Normalization
+# 데이터를 정규화 하는 가장 일반적인 방법 => 모든 feature들에 대해 최소 0 ~ 최대 1로 scaling (변환)
+
+# Z-Score Normalization(Standardization)
+# 평균과 분산을 이용하여 scaling => 이상치에 덜 민감, 하지만 모든 feature에 대해 동일한 척도 x
+```
+
+* 이 둘을 적용시키면 아까의 코드는 다음과 같이 변한다.
+
+```python
+# 1. Raw Data Loading
+df = pd.read_csv('./data/ozone.csv')
+
+training_data = df[['Temp','Ozone']]
+print(training_data.shape)  # (153, 2)
+
+training_data = training_data.dropna(how='any')
+print(training_data.shape)  # (116, 2)
+
+# 이상치 처리
+zscore_threshold = 2.0
+# outlier를 출력
+# Temp에 대한 이상치(지대점)을 확인
+outliers = training_data['Temp'][np.abs(stats.zscore(training_data['Temp'])) > zscore_threshold]
+
+training_data = training_data.loc[~training_data['Temp'].isin(outliers)]
+print(training_data.shape)
+
+# 정규화 처리 ! sklearn을 이용
+# 독립변수와 종속변수의 scaler 객체를 각각 생성
+
+scaler_x = MinMaxScaler()  # MinMaxScaler 클래스의 객체를 생성
+scaler_t = MinMaxScaler()  # MinMaxScaler 클래스의 객체를 생성
+
+scaler_x.fit(training_data['Temp'].values.reshape(-1,1))
+scaler_t.fit(training_data['Ozone'].values.reshape(-1,1))
+
+training_data['Temp'] = scaler_x.transform(training_data['Temp'].values.reshape(-1,1))
+training_data['Ozone'] = scaler_t.transform(training_data['Ozone'].values.reshape(-1,1))
+
+# print(training_data['Temp'].values)
+# print(training_data['Ozone'].values)
+
+# Training Data Set
+x_data = training_data['Temp'].values.reshape(-1,1)
+t_data = training_data['Ozone'].values.reshape(-1,1)
+
+# Weight & bias
+W = np.random.rand(1,1)
+b = np.random.rand(1)
+
+# loss function
+def loss_func(x,t):
+    y = np.dot(x,W) + b
+    return np.mean(np.power((t-y),2))
+
+def predict(x):
+    
+    return np.dot(x,W) + b
+
+# learning_rate
+learning_rate = 1e-4
+f = lambda x : loss_func(x_data,t_data)
+
+# 학습
+
+for step in range(900000):
+    W -= learning_rate * numerical_derivative(f,W)
+    b -= learning_rate * numerical_derivative(f,b)
+    
+    if step % 300000 == 0:
+        print('W:{}, b:{}, loss:{}'.format(W,b,loss_func(x_data,t_data)))
+        
+print(predict(62))
+```
+
+* 원하는 값을 알아보기 위해서는 원래 scale로 돌리는 것이 필요하다.
+
+```python
+predict_data = np.array([62])
+scaled_predict_data = scaler_x.transform(predict_data.reshape(-1,1))
+print(scaled_predict_data)
+
+scaled_result = predict(scaled_predict_data)
+result = scaler_t.inverse_transform(scaled_result)
+print(result)
+```
+
+
+
+
+
+## Tensorflow
+
+* Tensorflow를 이용한 linear Regression을 알아보자
+* Tensorflow를 설치 (1.x, 2.x 버젼이 있다. 공부때는 1.x 딥러닝때 2.x 적용하자)
+  * pip install tensorflow==1.15
+
+```python
+import tensorflow as tf
+
+print(tf.__version__)
+
+node = tf.constant('Hello World') # Node를 생성했다.
+
+# 우리가 만든 Graph를 실행하기 위해서 Session이 필요
+sess = tf.Session()
+
+# runner인 session이 생성되었으니 이걸 이용해서 node를 실행해보자
+print(sess.run(node))
+
+# node를 2개 만들자
+node1 = tf.constant(10, dtype=tf.float32)
+node2 = tf.constant(20, dtype=tf.float32)
+
+node3 = node1 + node2
+
+sess = tf.Session()
+print(sess.run([node3,node2]))
+
+# placeholder를 이용
+# 2개의 수를 입력으로 받아서 덧셈연산을 수행
+
+import tensorflow as tf
+
+node1 = tf.placeholder(dtype=tf.float32)      # scalar 형태의 값 1개를 실수로 받아드리는 placeholder
+
+node2 = tf.placeholder(dtype=tf.float32)
+
+node3 = node1 + node2
+
+sess = tf.Session()
+
+sess.run(node3, feed_dict={ node1 : 20, node2 : 40})
+```
+
+* Linear Regression에 적용하자
+
+```python
+import tensorflow as tf
+
+# 1. Raw Data Loading
+# 2. Data Preprocessing
+# 3. Training Data Set
+x_data = [2,4,5,7,10]
+t_data = [7,11,13,17,23]
+
+# 4. Weight & bias
+W = tf.Variable(tf.random.normal([1]), name='weight') # W = np.random.rand(1,1)
+b = tf.Variable(tf.random.normal([1]), name='bias')   # b = np.random.rand(1)
+
+# 5. Hypothesis, Simple Linear Regression Model
+H = W * x_data + b
+
+# 6. loss function
+loss = tf.reduce_mean(tf.square(t_data-H))
+
+# 7. train node 생성
+optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+train = optimizer.minimize(loss)
+
+# 8. 실행준비 및 초기화작업 (변수가 있으면 초기화가 필요하다)
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())  # 초기화 작업
+
+for step in range(30000):
+    _, W_val, b_val = sess.run([train,W,b])
+    
+    if step % 3000 == 0:
+        print('W:{},b:{}'.format(W_val, b_val))
+        
+print(sess.run(H))
+```
+

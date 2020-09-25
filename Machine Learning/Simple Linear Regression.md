@@ -414,3 +414,128 @@ for step in range(30000):
 print(sess.run(H))
 ```
 
+* placeholder를 추가해서 작성 가능하다.
+
+```python
+import tensorflow as tf
+
+# 1. Raw Data Loading
+# 2. Data Preprocessing
+# 3. Training Data Set
+x_data = [1,2,3,4,5]
+t_data = [2,4,6,8,10]
+
+# 4. placeholder
+X = tf.placeholder(dtype=tf.float32)
+T = tf.placeholder(dtype=tf.float32)
+
+# 5. Weight & bias
+W = tf.Variable(tf.random.normal([1]), name='weight')   # W = np.random.rand(1,1)
+b = tf.Variable(tf.random.normal([1]), name='bias')     # b = np.random.rand(1)
+
+# 5. Hypothesis, Simple Linear Regression Model
+H = W * X + b
+
+# 6. loss function
+loss = tf.reduce_mean(tf.square(H-T))
+
+# 7. train node 생성
+train = tf.train.GradientDescentOptimizer(learning_rate=0.001).minimize(loss)
+
+# Session & 초기화
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())
+
+# 10. 학습을 진행
+for step in range(30000):
+    _,W_val,b_val,loss_val = sess.run([train,W,b,loss], feed_dict={X : x_data, T : t_data})
+    
+    if step % 3000 == 0 :
+        print('w:{},b:{},loss:{}'.format(W_val,b_val,loss_val))
+    
+# 11 . predict
+print(sess.run(H, feed_dict={X:[6]}))
+```
+
+
+
+* 그렇다면 data columns이 여러가지일 경우인 Multiple Linear Regression을 구현해보자
+
+```python
+import tensorflow as tf
+import numpy as np
+import pandas as pd
+from scipy import stats
+from sklearn.preprocessing import MinMaxScaler
+
+# 1. Raw Data Loading
+df = pd.read_csv('./data/ozone.csv')
+
+df = df[['Temp', 'Wind', 'Solar.R','Ozone']]
+
+df = df.dropna(how='any')
+print(df.shape)  # (111, 4)
+
+# 이상치 처리
+zscore_threshold = 2.0
+
+for col in df.columns:
+    outliers = df[col][np.abs(stats.zscore(df[col])) > zscore_threshold]
+    df = df.loc[~df[col].isin(outliers)]
+    
+print(df.shape)
+
+# 정규화
+
+scaler_x = MinMaxScaler()  
+scaler_t = MinMaxScaler() 
+
+scaler_x.fit(df[['Temp', 'Wind', 'Solar.R']].values.reshape(-1,3))
+scaler_t.fit(df['Ozone'].values.reshape(-1,1))
+
+training_data_x = scaler_x.transform(df[['Temp', 'Wind', 'Solar.R']].values.reshape(-1,3))
+training_data_t = scaler_t.transform(df['Ozone'].values.reshape(-1,1))
+
+# Training Data Set
+x_data = training_data_x
+t_data = training_data_t
+
+# placeholder
+X = tf.placeholder(shape=[None,3] ,dtype=tf.float32)
+T = tf.placeholder(shape=[None,1] ,dtype=tf.float32)
+
+# Weight & bias
+W = tf.Variable(tf.random.normal([3,1]), name='weight')
+b = tf.Variable(tf.random.normal([1]), name='bias')
+
+# Hypothesis(Multiple Linear Regression Model)
+H = tf.matmul(X,W) + b
+
+# 6. loss function
+loss = tf.reduce_mean(tf.square(H-T))
+
+# 7. train node 생성
+train = tf.train.GradientDescentOptimizer(learning_rate=0.001).minimize(loss)
+
+# Session & 초기화
+sess = tf.Session()
+sess.run(tf.global_variables_initializer())
+
+# 10. 학습을 진행
+for step in range(300000):
+    _,W_val,b_val,loss_val = sess.run([train,W,b,loss], feed_dict={X : x_data, T : t_data})
+    
+    if step % 30000 == 0 :
+        print('w:{},b:{},loss:{}'.format(W_val,b_val,loss_val))
+        
+# 11 . predict
+predict_data_x = np.array([[150,8.0,85]])
+predict_data_x = scaler_x.transform(predict_data_x)
+
+result = sess.run(H, feed_dict={X :predict_data_x})
+result = scaler_t.inverse_transform(result)
+print(result)
+```
+
+
+

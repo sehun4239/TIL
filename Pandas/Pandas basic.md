@@ -944,7 +944,7 @@ print(df['E'].value_counts())
 
 
 # 값이 포함되는지 확인하는 함수 => boolean indexing(mask)
-print(df['E'].isin(['AA','BB(']))
+print(df['E'].isin(['AA','BB']))
 # 2020-01-01     True
 # 2020-01-02    False
 # 2020-01-03    False

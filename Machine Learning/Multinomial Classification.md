@@ -125,3 +125,139 @@ my_state_val = model.predict(scaler.transform(my_state))
 print(my_state_val)
 ```
 
+
+
+* accuracy를 확인하기위한 방법을 알아보자
+  * classification_report
+  * confusion_matrix
+
+```python
+from sklearn.metrics import classification_report
+
+y_true = [0, 1, 2, 2, 2]   # 정답
+y_pred = [0, 0, 2, 2, 1]   # 우리 model이 예측한 값
+
+target_name = ['thin', 'normal', 'fat']
+
+print(classification_report(y_true, y_pred, target_names = target_name))
+```
+
+```python
+from sklearn.metrics import confusion_matrix
+
+y_true = [2, 0, 2, 2, 0, 1]
+y_pred = [0, 0, 2, 2, 0, 2]
+
+confusion_matrix(y_true,y_pred)
+```
+
+
+
+* 이를 통해서 Tensorflow로 MNIST 예제를 다시 구현해보고 accuracy를 확인하자
+
+```python
+# Tensorflow 1.15버전을 가지고 MNIST예제를 구현
+import numpy as np
+import pandas as pd
+import tensorflow as tf
+import matplotlib.pyplot as plt
+import seaborn as sns           # confusino matrix를 heatmap을 통해서 그래프 출력
+from sklearn.preprocessing import MinMaxScaler   # Normalization
+from sklearn.model_selection import train_test_split   # train, test 분리
+from sklearn.model_selection import KFold         # Cross Validation
+from sklearn.metrics import classification_report, confusion_matrix
+
+# 1. Raw Data Loading
+df = pd.read_csv('/content/drive/My Drive/MachineLearning/train.csv')
+# display(df.head(), df.shape)      # (42000, 785)
+
+# 2. 결측치와 이상치 처리 => 결측치를 찾고 만약 결측치가 있으면 수정하자 이상치는 (scipy zscore이용)
+# 근데 MSNIST에는 없네
+
+# 3. 사용하는 데이터가 이미지 데이터다 => 어떤 이미지인지 한번 확인해보자
+#    df에서 label column은 제외하고 pixel 데이터만 들고오자
+img_data = df.drop('label', axis=1, inplace=False).values
+# 이미지들의 pixel 데이터만 ndarray로 추출(2차원) => 화면에 출력
+fig = plt.figure()  # 출력할 전체 화면을 지칭하는 객체를 가져온다.
+# fig안에 subplot을 만들거다. 저장할 list 만든다.
+fig_arr = list()
+
+for n in range(10):
+  fig_arr.append(fig.add_subplot(2,5,n+1))
+  fig_arr[n].imshow(img_data[n].reshape(28,28), cmap='Greys', interpolation='nearest')
+
+plt.tight_layout()
+plt.show()
+
+# 4. Data Split
+#    데이터는 크게 3부분으로 나누어야 한다.
+#    일단 2부분으로 나누자 (train용, test용)
+#    여기서 train용이라고 되어 있는 데이터를 다시 2부분으로 분리 (train, validation)
+#    train : 학습용 ,  validation : 모델 수정용도의 데이터 셋
+x_data_train, x_data_test, t_data_train, t_data_test = \
+train_test_split(df.drop('label',axis=1), df['label'], test_size=0.3, random_state=0)
+
+#5. norm
+scaler = MinMaxScaler()
+scaler.fit(x_data_train)
+x_data_train_norm = scaler.transform(x_data_train)
+x_data_test_norm = scaler.transform(x_data_test)
+
+# 6 one hot
+sess = tf.Session()
+t_data_train_onehot = sess.run(tf.one_hot(t_data_train, depth=10))
+t_data_test_onehot = sess.run(tf.one_hot(t_data_test, depth=10))
+
+#########################
+# Tensorflow 구현
+
+# 1. placeholder
+X = tf.placeholder(shape = [None,784], dtype=tf.float32)
+T = tf.placeholder(shape = [None,10], dtype=tf.float32)
+
+# 2. Weight,bias
+W = tf.Variable(tf.random.normal([784,10]), name='weight')
+b = tf.Variable(tf.random.normal([10]), name='bias')
+
+# 3. Model(Hypothesis)
+logit = tf.matmul(X,W) + b
+H = tf.nn.softmax(logit)
+
+# 4. loss function
+loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits = logit, labels = T))
+
+# 5. Optimizer를 이용한 train (Optimizer는 loss값을 줄이는 알고리즘)
+train = tf.train.GradientDescentOptimizer(learning_rate = 1e-1).minimize(loss)
+
+# parameter setting (기본적으로 2개는 설정)
+num_of_epoch = 100
+batch_size = 100
+
+# 7. 학습진행
+def run_train(sess ,train_x, train_t,):
+  print('###학습시작###')
+  sess.run(tf.global_variables_initializer())
+  total_batch = int(train_x.shape[0] / batch_size)
+  for step in range(num_of_epoch):
+    
+    for i in range(total_batch):
+      batch_x = train_x[i*batch_size:(i+1)*batch_size]
+      batch_t = train_t[i*batch_size:(i+1)*batch_size]
+      _, loss_val = sess.run([train,loss], feed_dict={X:batch_x, T:batch_t})
+
+    if step % 10 == 0:
+      print('Loss: {}'.format(loss_val))
+  print('###학습끝###')
+
+# Accuracy
+predict = tf.argmax(H, 1)     # [[0.1 0.3 0.2 .... 0.1]]
+
+
+# sklearn을 이용해서 classification_report를 출력
+target_name = ['num 0', 'num 1', 'num 2', 'num 3', 'num 4', 'num 5', 'num 6', 'num 7', 'num 8', 'num 9']
+# train 데이터로 학습하고 train 데이터로 성능평가를 해보자
+run_train(sess,x_data_train_norm,t_data_train_onehot)
+print(classification_report(t_data_train, sess.run(predict, feed_dict={X:x_data_train_norm}), target_names= target_name))
+
+```
+
